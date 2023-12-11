@@ -15,7 +15,9 @@ def detect_image(img, kNearest):
     canny_image = cv2.Canny(imgThreshplate, 250, 255)  # Canny Edge
     kernel = np.ones((3, 3), np.uint8)
     dilated_image = cv2.dilate(canny_image, kernel, iterations=1)
-    # cv2.imshow("anh11", cv2.resize(dilated_image, None, fx=0.5, fy=0.5))
+    # cv2.imwrite("results/threashImage.jpg", imgThreshplate)
+    cv2.imwrite("results/dilated_image.jpg", dilated_image)
+    cv2.imwrite("results/canny_image.jpg", canny_image)
 
     list = utils.findContours(dilated_image, img)
     # print(len(list))
@@ -34,6 +36,7 @@ def detect_image(img, kNearest):
         (topx, topy) = (np.min(x), np.min(y))
         (bottomx, bottomy) = (np.max(x), np.max(y))
         roi = img[topx:bottomx + 1, topy:bottomy + 1]
+        # cv2.imwrite("results/before_rotate.jpg", roi)
         imgThresh = imgThreshplate[topx:bottomx + 1, topy:bottomy + 1]
 
         # roi = utils.deskew(roi, 0, 0)
@@ -41,7 +44,9 @@ def detect_image(img, kNearest):
 
         angle = utils.compute_skew(roi)
         roi = utils.rotate_image(roi, angle)
+        # cv2.imwrite("results/after_rotate.jpg", roi)
         imgThresh = utils.rotate_image(imgThresh, angle)
+        # cv2.imwrite("results/thresh_plate.jpg", imgThresh)
 
         roi = cv2.resize(roi, (0, 0), fx=3, fy=3)
         imgThresh = cv2.resize(imgThresh, (0, 0), fx=3, fy=3)
@@ -99,7 +104,8 @@ def detect_image(img, kNearest):
                     first_line = first_line + strCurrentChar
                 else:
                     second_line = second_line + strCurrentChar
-                
+
+            # cv2.imwrite("results/bouding_character.jpg", roi)    
             strFinalString = first_line + second_line
             print("\n License Plate " + strFinalString)
             cv2.putText(img, strFinalString, (x_rect, y_rect-20), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
@@ -107,7 +113,7 @@ def detect_image(img, kNearest):
     return img, list_image_detected_plate
 
 if __name__ == "__main__":
-    originalImg = cv2.imread("images/1.jpg")
+    originalImg = cv2.imread("images/15.jpg")
     img = cv2.resize(originalImg, dsize=(1920, 1080))
     kNearest = utils.initModel()
     img, list_image_detected_plate = detect_image(img, kNearest)

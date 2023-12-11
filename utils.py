@@ -24,13 +24,13 @@ def preprocess(imgOriginal):
     # imgGrayscale = cv2.cvtColor(imgOriginal,cv2.COLOR_BGR2GRAY) nên dùng hệ màu HSV
     # Trả về giá trị cường độ sáng ==> ảnh gray
     imgMaxContrastGrayscale = maximizeContrast(imgGrayscale) # để làm nổi bật biển số hơn, dễ tách khỏi nền
-    #cv2.imwrite("imgGrayscalePlusTopHatMinusBlackHat.jpg",imgMaxContrastGrayscale)
+    # cv2.imwrite("results/imgGrayscalePlusTopHatMinusBlackHat.jpg",imgMaxContrastGrayscale)
     height, width = imgGrayscale.shape
 
+    #Làm mịn ảnh bằng bộ lọc Gauss 5x5, sigma = 0
     imgBlurred = np.zeros((height, width, 1), np.uint8)
     imgBlurred = cv2.GaussianBlur(imgMaxContrastGrayscale, GAUSSIAN_SMOOTH_FILTER_SIZE, 0)
-    #cv2.imwrite("gauss.jpg",imgBlurred)
-    #Làm mịn ảnh bằng bộ lọc Gauss 5x5, sigma = 0
+    # cv2.imwrite("results/gauss.jpg",imgBlurred)
 
     imgThresh = cv2.adaptiveThreshold(imgBlurred, 255.0, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT)
 
@@ -43,14 +43,15 @@ def extractValue(imgOriginal):
     imgHSV = cv2.cvtColor(imgOriginal, cv2.COLOR_BGR2HSV)
 
     imgHue, imgSaturation, imgValue = cv2.split(imgHSV)
-    
+    # cv2.imwrite("results/imgHue.jpg",imgHue)
+    # cv2.imwrite("results/imgSaturation.jpg",imgSaturation)
+    # cv2.imwrite("results/imgValue.jpg",imgValue)
     #màu sắc, độ bão hòa, giá trị cường độ sáng
     #Không chọn màu RBG vì vd ảnh màu đỏ sẽ còn lẫn các màu khác nữa nên khó xđ ra "một màu" 
     return imgValue
 
 # Làm cho độ tương phản lớn nhất 
 def maximizeContrast(imgGrayscale):
-    #Làm cho độ tương phản lớn nhất 
     height, width = imgGrayscale.shape
     
     imgTopHat = np.zeros((height, width, 1), np.uint8)
@@ -58,9 +59,9 @@ def maximizeContrast(imgGrayscale):
     structuringElement = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) #tạo bộ lọc kernel
     
     imgTopHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_TOPHAT, structuringElement, iterations = 10) #nổi bật chi tiết sáng trong nền tối
-    #cv2.imwrite("tophat.jpg",imgTopHat)
+    # cv2.imwrite("results/tophat.jpg",imgTopHat)
     imgBlackHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_BLACKHAT, structuringElement, iterations = 10) #Nổi bật chi tiết tối trong nền sáng
-    #cv2.imwrite("blackhat.jpg",imgBlackHat)
+    # cv2.imwrite("results/blackhat.jpg",imgBlackHat)
     imgGrayscalePlusTopHat = cv2.add(imgGrayscale, imgTopHat) 
     imgGrayscalePlusTopHatMinusBlackHat = cv2.subtract(imgGrayscalePlusTopHat, imgBlackHat)
 
@@ -85,6 +86,7 @@ def findContours(edged_img, img):
         if (len(approx) == 4) and (0.8 <= ratio <= 1.5 or 4.5 <= ratio <= 6.5):
             listContours.append(approx)
 
+    # cv2.imwrite("results/contours.jpg", img)
     return listContours
 
 def changeContrast(img):
