@@ -11,10 +11,10 @@ def detect_video(vid, kNearest):
     while(ret):
         ret, frame = vid.read()
 
-        # Moi mot frame coi la 1 anh va xu ly nhu xy ly anh
+        # Bắt từng frame, coi nó như là một ảnh và truyền vào xử lý ánh
         detect_image(frame, kNearest)
         
-        # Tinh toan fps
+        # Tính toán FPS
         new_frame_time = time.time()
         fps = 1/(new_frame_time-prev_frame_time)
         prev_frame_time = new_frame_time

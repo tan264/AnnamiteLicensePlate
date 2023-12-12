@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import math
 
-GAUSSIAN_SMOOTH_FILTER_SIZE = (5, 5) #kích cỡ càng to thì càng mờ
+GAUSSIAN_SMOOTH_FILTER_SIZE = (5, 5) # Kích cỡ càng to thì càng mờ
 ADAPTIVE_THRESH_BLOCK_SIZE = 19 
 ADAPTIVE_THRESH_WEIGHT = 9  
 
-# model duoc train san giup doc anh => ki tu
+# Tải đã được train vào để nhận diện kí tự
 def initModel():
     npaClassifications = np.loadtxt("model/classificationS.txt", np.float32)
     npaFlattenedImages = np.loadtxt("model/flattened_images.txt", np.float32)
@@ -17,13 +17,11 @@ def initModel():
 
     return kNearest
 
-# tien xu ly anh, tra ve anh xam va anh nhi phan
+# Tiền xử lý ảnh, trả về ảnh xám và ảnh nhị phân
 def preprocess(imgOriginal):
-
-    imgGrayscale = extractValue(imgOriginal)
-    # imgGrayscale = cv2.cvtColor(imgOriginal,cv2.COLOR_BGR2GRAY) nên dùng hệ màu HSV
-    # Trả về giá trị cường độ sáng ==> ảnh gray
-    imgMaxContrastGrayscale = maximizeContrast(imgGrayscale) # để làm nổi bật biển số hơn, dễ tách khỏi nền
+    imgGrayscale = extractValue(imgOriginal) # Lấy giá trị cường độ sáng => ảnh xám
+    # Thực hiện các phép toán hình thái học để làm nổi bật biển số xe => dễ tách
+    imgMaxContrastGrayscale = maximizeContrast(imgGrayscale)
     # cv2.imwrite("results/imgGrayscalePlusTopHatMinusBlackHat.jpg",imgMaxContrastGrayscale)
     height, width = imgGrayscale.shape
 
@@ -32,22 +30,21 @@ def preprocess(imgOriginal):
     imgBlurred = cv2.GaussianBlur(imgMaxContrastGrayscale, GAUSSIAN_SMOOTH_FILTER_SIZE, 0)
     # cv2.imwrite("results/gauss.jpg",imgBlurred)
 
+    # Nhị phân hoá ảnh theo ngưỡng động
     imgThresh = cv2.adaptiveThreshold(imgBlurred, 255.0, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT)
 
-    #Tạo ảnh nhị phân
     return imgGrayscale, imgThresh
 
+# Chuyển ảnh sang hệ HSV và lấy kênh V (giá trị cường độ sáng)
 def extractValue(imgOriginal):
-    height, width, numChannels = imgOriginal.shape
+    height, width, _ = imgOriginal.shape
     imgHSV = np.zeros((height, width, 3), np.uint8)
     imgHSV = cv2.cvtColor(imgOriginal, cv2.COLOR_BGR2HSV)
 
-    imgHue, imgSaturation, imgValue = cv2.split(imgHSV)
+    _, _, imgValue = cv2.split(imgHSV)
     # cv2.imwrite("results/imgHue.jpg",imgHue)
     # cv2.imwrite("results/imgSaturation.jpg",imgSaturation)
     # cv2.imwrite("results/imgValue.jpg",imgValue)
-    #màu sắc, độ bão hòa, giá trị cường độ sáng
-    #Không chọn màu RBG vì vd ảnh màu đỏ sẽ còn lẫn các màu khác nữa nên khó xđ ra "một màu" 
     return imgValue
 
 # Làm cho độ tương phản lớn nhất 
@@ -56,20 +53,19 @@ def maximizeContrast(imgGrayscale):
     
     imgTopHat = np.zeros((height, width, 1), np.uint8)
     imgBlackHat = np.zeros((height, width, 1), np.uint8)
-    structuringElement = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) #tạo bộ lọc kernel
+    structuringElement = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) # Tạo bộ lọc kernel
     
-    imgTopHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_TOPHAT, structuringElement, iterations = 10) #nổi bật chi tiết sáng trong nền tối
+    imgTopHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_TOPHAT, structuringElement, iterations = 10) # Nổi bật chi tiết sáng trong nền tối
     # cv2.imwrite("results/tophat.jpg",imgTopHat)
-    imgBlackHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_BLACKHAT, structuringElement, iterations = 10) #Nổi bật chi tiết tối trong nền sáng
+    imgBlackHat = cv2.morphologyEx(imgGrayscale, cv2.MORPH_BLACKHAT, structuringElement, iterations = 10) # Nổi bật chi tiết tối trong nền sáng
     # cv2.imwrite("results/blackhat.jpg",imgBlackHat)
     imgGrayscalePlusTopHat = cv2.add(imgGrayscale, imgTopHat) 
     imgGrayscalePlusTopHatMinusBlackHat = cv2.subtract(imgGrayscalePlusTopHat, imgBlackHat)
-
     #cv2.imshow("imgGrayscalePlusTopHatMinusBlackHat",imgGrayscalePlusTopHatMinusBlackHat)
-    #Kết quả cuối là ảnh đã tăng độ tương phản 
+
     return imgGrayscalePlusTopHatMinusBlackHat
 
-# Tra ve nhung hinh co duong vien khep kin(co kha nang la bien so xe)
+# Tìm các đương bao khép kín (bontour) có khả năng bao quanh biển số xe
 def findContours(edged_img, img):
     contours, hierarchy = cv2.findContours(edged_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     # sắp xếp các contour có kích thước lớn lên đầu và chỉ lấy 10 phần tử
@@ -82,29 +78,22 @@ def findContours(edged_img, img):
         approx = cv2.approxPolyDP(c, 0.06 * peri, True)
         [x, y, w, h] = cv2.boundingRect(approx.copy())
         ratio = w / h
-        # nếu số đỉnh bằng 4 thì ta thêm vào list
+        # nếu số đỉnh bằng 4 và tỉ lệ hợp lý với một biến số xe thì ta thêm vào list
         if (len(approx) == 4) and (0.8 <= ratio <= 1.5 or 4.5 <= ratio <= 6.5):
             listContours.append(approx)
 
     # cv2.imwrite("results/contours.jpg", img)
     return listContours
 
-def changeContrast(img):
-    lab= cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    l_channel, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-    cl = clahe.apply(l_channel)
-    limg = cv2.merge((cl,a,b))
-    enhanced_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    return enhanced_img
-
+# hàm xoay ảnh
 def rotate_image(image, angle):
     image_center = tuple(np.array(image.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
     result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
     return result
 
-def compute_skew(src_img, center_thres = 0):
+# hàm tính góc nghiêng của biển số xe
+def compute_skew(src_img):
     if len(src_img.shape) == 3:
         h, w, _ = src_img.shape
     elif len(src_img.shape) == 2:
@@ -122,9 +111,6 @@ def compute_skew(src_img, center_thres = 0):
     for i in range (len(lines)):
         for x1, y1, x2, y2 in lines[i]:
             center_point = [((x1+x2)/2), ((y1+y2)/2)]
-            if center_thres == 1:
-                if center_point[1] < 7:
-                    continue
             if center_point[1] < min_line:
                 min_line = center_point[1]
                 min_line_pos = i
@@ -134,23 +120,9 @@ def compute_skew(src_img, center_thres = 0):
     cnt = 0
     for x1, y1, x2, y2 in lines[min_line_pos]:
         ang = np.arctan2(y2 - y1, x2 - x1)
-        if math.fabs(ang) <= 30: # excluding extreme rotations
+        if math.fabs(ang) <= 30: # tranh nhung goc qua lon
             angle += ang
             cnt += 1
     if cnt == 0:
         return 0.0
-    return (angle / cnt)*180/math.pi
-
-def deskew(src_img, change_cons, center_thres):
-    if change_cons == 1:
-        return rotate_image(src_img, compute_skew(changeContrast(src_img), center_thres))
-    else:
-        return rotate_image(src_img, compute_skew(src_img, center_thres))
-
-# def sort_contours(cnts):
-#     reverse = False
-#     i = 0
-#     boundingBoxes = [cv2.boundingRect(c) for c in cnts]
-#     (cnts, boundingBoxes) = zip(*sorted(zip(cnts, boundingBoxes),
-#                                         key=lambda b: b[1][i], reverse=reverse))
-#     return cnts   
+    return (angle / cnt) * 180 / math.pi
