@@ -14,7 +14,7 @@ def detect_image(img, kNearest):
     imgGrayscaleplate, imgThreshplate = utils.preprocess(img)
     canny_image = cv2.Canny(imgThreshplate, 250, 255)  # Canny Edge
     kernel = np.ones((3, 3), np.uint8)
-    dilated_image = cv2.dilate(canny_image, kernel, iterations=1)
+    dilated_image = cv2.dilate(canny_image, kernel, iterations=1) # Dùng phép nở ảnh, nở to các cạnh hay vùng trắng trong ảnh
     # cv2.imwrite("results/threashImage.jpg", imgThreshplate)
     # cv2.imwrite("results/dilated_image.jpg", dilated_image)
     # cv2.imwrite("results/canny_image.jpg", canny_image)
@@ -36,9 +36,9 @@ def detect_image(img, kNearest):
         (x, y) = np.where(mask == 255)
         (topx, topy) = (np.min(x), np.min(y))
         (bottomx, bottomy) = (np.max(x), np.max(y))
-        roi = img[topx:bottomx + 1, topy:bottomy + 1] # cắt trên ảnh gốc
+        roi = img[topx:bottomx - 9, topy:bottomy + 1] # cắt trên ảnh gốc
         # cv2.imwrite("results/before_rotate.jpg", roi)
-        imgThresh = imgThreshplate[topx:bottomx + 1, topy:bottomy + 1] # cắt trên ảnh nhị phân
+        imgThresh = imgThreshplate[topx:bottomx - 9, topy:bottomy + 1] # cắt trên ảnh nhị phân
 
         # roi = utils.deskew(roi, 0, 0)
         # imgThresh = utils.deskew(imgThresh,0, 0)
@@ -57,29 +57,32 @@ def detect_image(img, kNearest):
 
         # Tiền xử lý vùng ảnh chứa biển số xe
         kerel3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        thre_mor = cv2.morphologyEx(imgThresh, cv2.MORPH_DILATE, kerel3)
+        thre_mor = cv2.morphologyEx(imgThresh, cv2.MORPH_DILATE, kerel3) # Dùng phép nở ảnh
         cont, hier = cv2.findContours(thre_mor, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Character segmentation
+        # Phân đoạn kí tự
         char_x_ind = {}
         char_x = []
         height, width, _ = roi.shape
         roiarea = height * width
         # print ("roiarea",roiarea)
-        for ind, cnt in enumerate(cont):
-            # cv2.drawContours(roi, [cnt], -1, (0, 255, 0), 3)s
+        for ind, cnt in enumerate(cont): # Lọc tìm các contour có khả năng là kí tự
+            # cv2.drawContours(roi, [cnt], -1, (0, 255, 0), 3)
             area = cv2.contourArea(cnt)
             (x, y, w, h) = cv2.boundingRect(cont[ind])
             ratiochar = w / h
-            if (Min_char * roiarea < area < Max_char * roiarea) and (0.25 < ratiochar < 0.7):
+            # print("ratio: " + str(ratiochar))
+            # print("area: " + str(area))
+            # Lọc theo tiêu chí đường viền và tỉ lệ của kí tự
+            if (Min_char * roiarea < area < Max_char * roiarea) and (0.25 < ratiochar < 0.85):
                 if x in char_x:  # Sử dụng để dù cho trùng x vẫn vẽ được
                     x = x + 1
                 char_x.append(x)
                 char_x_ind[x] = ind
-        
-        # cv2.imwrite("results/thresh_contour_character.jpg", roi)
-        # Character recognition
+        # print(str(len(char_x)) + "\n")
+        # Biến đổi các kí tự tách được truyền cho model để nhận diện
         if len(char_x) in range(7, 10):
+            # cv2.imwrite("results/thresh_contour_character.jpg", roi)
             cv2.drawContours(img, [list[a]], -1, (0, 255, 0), 3)
 
             char_x = sorted(char_x)
@@ -116,7 +119,7 @@ def detect_image(img, kNearest):
     return img, list_image_detected_plate
 
 if __name__ == "__main__":
-    originalImg = cv2.imread("images/15.jpg")
+    originalImg = cv2.imread("images/1.jpg")
     img = cv2.resize(originalImg, dsize=(1920, 1080))
     kNearest = utils.initModel()
     img, list_image_detected_plate = detect_image(img, kNearest)

@@ -100,9 +100,9 @@ def compute_skew(src_img):
         h, w = src_img.shape
     else:
         print('upsupported image type')
-    img = cv2.medianBlur(src_img, 3)
-    edges = cv2.Canny(img,  threshold1 = 30,  threshold2 = 100, apertureSize = 3, L2gradient = True)
-    lines = cv2.HoughLinesP(edges, 1, math.pi/180, 30, minLineLength=w / 1.5, maxLineGap=h/3.0)
+    img = cv2.medianBlur(src_img, 3) # Làm mờ bằng phép lọc trung vị
+    edges = cv2.Canny(img,  threshold1 = 30,  threshold2 = 100, apertureSize = 3, L2gradient = True) # Áp dụng thuật toán Canny tìm các cạnh
+    lines = cv2.HoughLinesP(edges, 1, math.pi/180, 30, minLineLength=w / 1.5, maxLineGap=h/3.0) # Tìm các đoạn thẳng trong ảnh từ ảnh chứa các cạnh
     if lines is None:
         return 1
 
@@ -110,15 +110,15 @@ def compute_skew(src_img):
     min_line_pos = 0
     for i in range (len(lines)):
         for x1, y1, x2, y2 in lines[i]:
-            center_point = [((x1+x2)/2), ((y1+y2)/2)]
-            if center_point[1] < min_line:
+            center_point = [((x1+x2)/2), ((y1+y2)/2)] # Tính trung điểm đoạn thẳng
+            if center_point[1] < min_line: # Nếu trung điểm đoạn thẳng nhỏ hơn min hiện tại thì gán min hiện tại là đoạn thẳng đó
                 min_line = center_point[1]
                 min_line_pos = i
 
     angle = 0.0
     nlines = lines.size
     cnt = 0
-    for x1, y1, x2, y2 in lines[min_line_pos]:
+    for x1, y1, x2, y2 in lines[min_line_pos]: # Tính góc của đoạn thẳng gần trục hoành nhất với trục hoành
         ang = np.arctan2(y2 - y1, x2 - x1)
         if math.fabs(ang) <= 30: # tranh nhung goc qua lon
             angle += ang
